@@ -1,0 +1,110 @@
+from array import  *
+from matplotlib import *
+import matplotlib.pyplot as plt
+from boundaryScript import *
+
+gpsFile = open(raw_input('Enter GPS file /neshto.txt/'), 'r').readlines()
+heightFile = open(raw_input('Enter Z file /neshto.txt/'),'r').readlines()
+
+heightsArray = []
+gpsArray = []
+for index in range(0,len(gpsFile),1):
+   gpsArray.insert(index, gpsFile[index].split(' '))
+
+
+for index in range(0, len(heightFile),1):
+    heightsArray.insert(index,heightFile[index].split(' '))
+    while (len(heightsArray[index]) > 2):
+        indexOf = heightsArray[index].index('')
+        heightsArray[index].pop(indexOf)
+
+def syncEchoAndGPSTimes():
+    syncTime = raw_input('Please insert the sync time in format hh:mm:ss:')
+    time = float(syncTime.split(':')[0]) + float(syncTime.split(':')[1])/60+float(syncTime.split(':')[2])/3600
+    for row in gpsArray:
+       # print(row)
+        row.insert(3,float(row[0].split(':')[0])+float(row[0].split(':')[1])/60+float(row[0].split(':')[2])/3600)
+      #  print(row)
+
+    for arr in heightsArray:
+        arr.insert(2,float(arr[0].split(':')[0]) + float(arr[0].split(':')[1])/60  + float(arr[0].split(':')[2])/3600+time)
+        if  arr[2] >= 24:
+            arr[2] -= 24
+
+    count = 0
+    for ind in range(0,len(gpsArray) - 1,1):
+        GPSDdeltha = (gpsArray[ind+1][3] - gpsArray[ind][3])*3600
+
+        deltaX = float(gpsArray[ind+1][1]) - float(gpsArray[ind][1])
+        deltaY = float(gpsArray[ind + 1][2]) - float(gpsArray[ind][2])
+        for hind in range(count,len(heightsArray),1):
+            heightsArray[count].insert(3,0);
+            heightsArray[count].insert(4,0);
+            if heightsArray[count][2] >= gpsArray[ind+1][3]:
+                break
+            currentDelta = (heightsArray[hind][2] - gpsArray[ind][3]) * 3600
+            #print('currentDelta' + str(currentDelta))
+            currentdX = currentDelta / GPSDdeltha * deltaX
+            currentdY = currentDelta / GPSDdeltha * deltaY
+            #print('deltaX = ' + str(deltaX))
+           # print ('deltaY = ' + str(deltaY))
+            #print('currentdx = ' + str(currentdX))
+            #print('currentdy = ' + str (currentdY))
+            heightsArray[count][3] = float(gpsArray[ind][1]) + currentdX
+            heightsArray[count][4] = float(gpsArray[ind][2]) + currentdY
+            count+=1
+    return 1
+
+syncEchoAndGPSTimes()
+
+def printResult(resultArr):
+    resFile = open('Result.txt', 'w')
+    resFile.write("Time X Y Z \n")
+    resFile.write(str(len(resultArr))+"\n")
+    row = 0
+    end = len(resultArr)
+    while(resultArr[row+1][3] != 0):
+        mins = int((resultArr[row][2] - int(resultArr[row][2]))*60)
+        sec=(( resultArr[row][2] - int(resultArr[row][2])) * 60 - int(( resultArr[row][2] - int(resultArr[row][2])) * 60))*60
+        time = str(int(resultArr[row][2])) + ':' + str(mins)+':' + str(sec)
+        resFile.write((time + ' %8.3f   %8.3f\n')%(resultArr[row][3], resultArr[row][4]))
+        row+=1
+        #a = str(row)
+        #resFile.write(('%8.3f\n')%(resultArr[row][1]))
+    resFile.close();
+    return  1
+
+printResult(heightsArray)
+def printInScript():
+    script = open("modelMake.scr","w")
+    script.write("ucs world\nunits 2 3 3 4 100.000 y\nosnap none\n")
+    script.write("layer m workPoints c red\n\n\n")
+    ind = 0
+    while(heightsArray[ind][3]!=0):
+        script.write(("point %8.3f,%8.3f\n")%(heightsArray[ind][4],heightsArray[ind][3]))
+        ind+=1
+
+
+    script.write("layer m polyGals c blue\n\n\n")
+    ind = 0
+    script.write("pline\n")
+    while(heightsArray[ind][3]!=0):
+        script.write(("%8.3f,%8.3f\n")%(heightsArray[ind][4],heightsArray[ind][3]))
+        ind+=1
+    script.close()
+    return 1
+
+#printInScript()
+
+boundar = open(raw_input('Enter file vodna liniya /neshto.txt/:'),'r').readlines()
+#boundaryScript(boundar)
+from tariraneExho import *
+
+danni = open(raw_input('Insert the name of the file for tarirane'),'r')
+v = tarirane(danni)
+
+from calculateEchoCoords import *
+endArray = calculateEchoCoords(heightsArray,v)
+from finalPrint import *
+print(endArray)
+printAllResults(endArray)
